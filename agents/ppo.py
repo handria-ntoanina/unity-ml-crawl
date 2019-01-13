@@ -112,6 +112,13 @@ class PPO():
                 
                 # find out how likely the new network would have chosen the sampled_actions
                 _, new_log_probs, estimated_values = self.network(sampled_states, sampled_actions)
+                # at some point new_log_probs could be nan since there could be no probability for the network to output
+                # the sampled_actions
+                # according to https://stackoverflow.com/questions/48158017/pytorch-operation-to-detect-nans
+                # nan != nan
+                isNan = new_log_probs != new_log_probs
+                if isNan.sum():
+                    nn.init.constant_(x, tensor(1e-10).log())
             
                 assert new_log_probs.shape == sampled_log_probs.shape
                 assert sampled_advantages.shape == sampled_log_probs.shape
