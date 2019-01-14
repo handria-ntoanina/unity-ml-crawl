@@ -1,0 +1,26 @@
+Episode 50	Average Score: 703.070	Min Score: 42.650	Max Score: 2200.730
+Episode 100	Average Score: 758.733	Min Score: 30.106	Max Score: 2293.614
+Episode 150	Average Score: 819.561	Min Score: 33.379	Max Score: 2204.255
+Episode 200	Average Score: 654.125	Min Score: 44.611	Max Score: 1551.960
+Episode 250	Average Score: 501.351	Min Score: 20.988	Max Score: 2156.847
+Episode 300	Average Score: 526.878	Min Score: 25.047	Max Score: 1800.928
+Episode 350	Average Score: 524.858	Min Score: 33.868	Max Score: 1443.150
+Episode 400	Average Score: 560.441	Min Score: 27.899	Max Score: 2012.622
+Episode 450	Average Score: 607.746	Min Score: 53.613	Max Score: 1445.416
+Episode 500	Average Score: 512.577	Min Score: 16.677	Max Score: 1566.909
+Episode 550	Average Score: 397.442	Min Score: 33.655	Max Score: 978.854
+Episode 600	Average Score: 399.080	Min Score: 50.883	Max Score: 1046.915
+Episode 650	Average Score: 473.620	Min Score: 42.370	Max Score: 1840.630
+Episode 700	Average Score: 468.639	Min Score: 21.230	Max Score: 1293.038
+Episode 750	Average Score: 464.298	Min Score: 26.551	Max Score: 1549.463
+Episode 800	Average Score: 543.011	Min Score: 59.755	Max Score: 1648.432
+Episode 850	Average Score: 586.623	Min Score: 43.299	Max Score: 2083.251
+Episode 900	Average Score: 623.134	Min Score: 102.583	Max Score: 1833.136
+Episode 950	Average Score: 692.710	Min Score: 63.691	Max Score: 2280.005
+Episode 1000	Average Score: 681.789	Min Score: 47.143	Max Score: 1762.600
+Episode 1050	Average Score: 692.800	Min Score: 61.719	Max Score: 2282.897
+Episode 1100	Average Score: 809.603	Min Score: 27.948	Max Score: 2282.518
+Episode 1150	Average Score: 814.253	Min Score: 38.115	Max Score: 2300.756
+Episode 1200	Average Score: 878.243	Min Score: 69.973	Max Score: 2357.663
+
+Environment solved in 1241 episodes!	Average Score: 1001.995

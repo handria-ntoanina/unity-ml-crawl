@@ -1,6 +1,7 @@
 import numpy as np
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from agents.model_ppo import Gaussian
@@ -116,9 +117,8 @@ class PPO():
                 # the sampled_actions
                 # according to https://stackoverflow.com/questions/48158017/pytorch-operation-to-detect-nans
                 # nan != nan
-                isNan = new_log_probs != new_log_probs
-                if isNan.sum():
-                    nn.init.constant_(x, tensor(1e-10).log())
+                isNan = (new_log_probs != new_log_probs) 
+                new_log_probs = new_log_probs + isNan.float() * torch.tensor(1e-10).log()
             
                 assert new_log_probs.shape == sampled_log_probs.shape
                 assert sampled_advantages.shape == sampled_log_probs.shape
@@ -136,7 +136,7 @@ class PPO():
                 entropy = -(new_log_probs.exp()*sampled_log_probs).squeeze()
                 
                 self.optim.zero_grad()
-                (-clipped_surrogate + 0.5*value_loss - 0.1*entropy).mean().backward()
+                (-clipped_surrogate + 0.5*value_loss - 0.01*entropy).mean().backward()
                 torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.GRADIENT_CLIP)
                 self.optim.step()
                 
