@@ -25,12 +25,13 @@ class SimpleNoise:
     def __init__(self, size, scale = 1.0):
         self.size = size
         self.scale = scale
+        self.median = scale / 2
         
     def reset(self):
         pass
     
     def sample(self):
-        return self.scale * np.random.randn(self.size)
+        return self.scale * np.random.randn(self.size) - self.median
         
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
@@ -55,6 +56,7 @@ class OUNoise:
         self.state = x + dx
         return self.state
     
+Experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
@@ -71,13 +73,12 @@ class ReplayBuffer:
         self.action_size = action_size
         self.memory = deque(maxlen=buffer_size)  
         self.batch_size = batch_size
-        self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
         self.seed = random.seed(seed)
         self.device = device
         
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""
-        e = self.experience(state, action, reward, next_state, done)
+        e = Experience(state, action, reward, next_state, done)
         self.memory.append(e)
     
     def sample(self):

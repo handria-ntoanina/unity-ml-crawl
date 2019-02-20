@@ -11,52 +11,29 @@ from agents_maddpg.utils import soft_update
 class MADDPG():
     """Interacts with and learns from the environment."""
     
-    def __init__(self, state_size, action_size, num_agents, memory, network, device,
-                GRADIENT_CLIP = 1,
-                ACTIVATION = F.relu,
-                BOOTSTRAP_SIZE = 5,
-                GAMMA = 0.99, 
-                TAU = 1e-3, 
-                LR_CRITIC = 5e-4,
-                LR_ACTOR = 5e-4, 
-                UPDATE_EVERY = 1,
-                TRANSFER_EVERY = 2,
-                UPDATE_LOOP = 10,
-                ADD_NOISE_EVERY = 5,
-                WEIGHT_DECAY = 0):
-        """Initialize an Agent object.
-        
-        Params
-        ======
-            state_size (int): dimension of each state
-            action_size (int): dimension of each action
-            num_agents: number of running agents
-            memory: instance of ReplayBuffer
-            network: a class inheriting from torch.nn.Module that define the structure of the actor critic neural network
-            device: cpu or cuda:0 if available
-            ACTIVATION: the activation function to be used by the network
-            BOOTSTRAP_SIZE: length of the bootstrap
-            GAMMA: discount factor
-            TAU: for soft update of target parameters
-            LR_CRITIC: learning rate of the critic network
-            LR_ACTOR: learning rate of the actor network
-            UPDATE_EVERY: how often to update the networks
-            TRANSFER_EVERY: after how many update do we transfer from the online network to the targeted fixed network
-            UPDATE_LOOP: number of update loop whenever the networks are being updated
-            ADD_NOISE_EVERY: how often to add noise to favor exploration
-            WEIGHT_DECAY: parameter of the Adam Optimizer of the critic network
-            GRADIENT_CLIP: limit of exploding gradient to be clipped
-        """
+    def __init__(self, network_local, network_target, num_agents, memory,device,
+                GRADIENT_CLIP,
+                BOOTSTRAP_SIZE,
+                GAMMA, 
+                TAU, 
+                LR_CRITIC,
+                LR_ACTOR, 
+                UPDATE_EVERY,
+                TRANSFER_EVERY,
+                UPDATE_LOOP,
+                ADD_NOISE_EVERY,
+                WEIGHT_DECAY):
         
         # Actor networks
+        self.network_local = network_local
+        self.network_target = network_target
         
-        self.network_local = network(state_size, action_size, activation = ACTIVATION).to(device)
-        self.network_target = network(state_size, action_size, activation = ACTIVATION).to(device)
         self.actor_optim = optim.Adam(self.network_local.actor.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
         self.critic_optim = optim.Adam(self.network_local.critic.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
+        self.WEIGHT_DECAY = WEIGHT_DECAY
         
         # Ensure that at the begining, both target and local are having the same parameters
-        soft_update(self.network_local, self.network_target, 1)
+        
         
         self.device = device
         
@@ -95,14 +72,6 @@ class MADDPG():
         
     def set_noise(self, noise):
         self.noise = noise
-        
-    def save(self, filename):
-        torch.save(self.network_local.state_dict(),"weights/{}_local.pth".format(filename))
-        torch.save(self.network_target.state_dict(),"weights/{}_target.pth".format(filename))
-     
-    def load(self, path):
-        self.network_local.load_state_dict(torch.load(path + "_local.pth"))
-        self.network_target.load_state_dict(torch.load(path + "_target.pth"))
     
     def act(self, states, noise = 0.0):
         """Returns actions of each actor for given states.

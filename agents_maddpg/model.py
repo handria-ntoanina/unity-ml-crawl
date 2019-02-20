@@ -14,6 +14,9 @@ def layer_init(layer, w_scale=1.0):
 class ActorCritic(nn.Module):
     def __init__(self, state_size, action_size, activation=F.relu):
         super().__init__()
+        self.activation = activation
+        self.state_size = state_size
+        self.action_size = action_size
         self.actor = FullyConnected([state_size, 112, 112,  action_size], activation=activation)
         self.critic = FullyConnected([state_size + action_size, 112, 112, 1], activation=activation)
     
