@@ -19,7 +19,9 @@ class PPO():
                  BATCH_SIZE=32,
                 GAMMA=0.99,
                 GAE_TAU=0.95,
-                CLIP_EPSILON=1e-1):
+                CLIP_EPSILON=1e-1,
+                C1=0.5,
+                C2=0.01):
         self.device = device
         self.network = network
         self.optim = optim.Adam(self.network.parameters(), lr=LR)
@@ -29,6 +31,8 @@ class PPO():
         self.GAMMA=GAMMA
         self.CLIP_EPSILON=CLIP_EPSILON
         self.GAE_TAU=GAE_TAU
+        self.C1 = C1
+        self.C2 = C2
     
     def save(self, file):
         torch.save(self.network.state_dict(),"weights\\" + file)
@@ -136,7 +140,7 @@ class PPO():
                 entropy = -(new_log_probs.exp()*sampled_log_probs).squeeze()
                 
                 self.optim.zero_grad()
-                (-clipped_surrogate + 0.5*value_loss - 0.01*entropy).mean().backward()
+                (-clipped_surrogate + self.C1*value_loss - self.C2*entropy).mean().backward()
                 torch.nn.utils.clip_grad_norm_(self.network.parameters(), self.GRADIENT_CLIP)
                 self.optim.step()
                 
