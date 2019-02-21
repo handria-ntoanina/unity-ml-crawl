@@ -4,6 +4,9 @@ import copy
 from collections import namedtuple, deque
 import torch
 import time
+import random
+import numpy as np
+from agents_maddpg.sumtree import SumTree
 
 def soft_update(local_model, target_model, tau):
     """Soft update model parameters.
@@ -22,7 +25,7 @@ def soft_update(local_model, target_model, tau):
         target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
 class SimpleNoise:
-    def __init__(self, size, scale = 1.0):
+    def __init__(self, size, scale = 2.0):
         self.size = size
         self.scale = scale
         self.median = scale / 2
@@ -42,7 +45,6 @@ class OUNoise:
         self.theta = theta
         self.sigma = sigma
         self.seed = random.seed(seed)
-        self.device = device
         self.reset()
 
     def reset(self):
@@ -60,17 +62,15 @@ Experience = namedtuple("Experience", field_names=["state", "action", "reward", 
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, action_size, device, buffer_size, batch_size, seed):
+    def __init__(self, device, buffer_size, batch_size, seed):
         """Initialize a ReplayBuffer object.
        
         Params
         ======
-            action_size (int): dimension of each action
             buffer_size (int): maximum size of buffer
             batch_size (int): size of each training batch
             seed (int): random seed
         """
-        self.action_size = action_size
         self.memory = deque(maxlen=buffer_size)  
         self.batch_size = batch_size
         self.seed = random.seed(seed)
@@ -105,3 +105,58 @@ class ReplayBuffer:
     def __len__(self):
         """Return the current size of internal memory."""
         return len(self.memory)
+
+
+class PrioritizedMemory:
+    def __init__(self, device, capacity, batch_size):
+        self.tree = SumTree(capacity)
+        self.capacity = capacity
+        self.batch_size = batch_size
+        self.device = device
+
+
+    def add(self, error, state, action, reward, next_state, done):
+        # print("error={}, state={}, action={}, reward={}, next_state={}, done={}".format(error, state.shape,
+        #                                                                                 action.shape, reward, next_state.shape, done))
+        sample = Experience(state, action, reward, next_state, done)
+        self.tree.add(error, sample)
+
+    def sample(self):
+        states = []
+        actions = []
+        rewards = []
+        next_states = []
+        dones = []
+        idxs = []
+        segment = self.tree.total() / self.batch_size
+        priorities = []
+
+        for i in range(self.batch_size):
+            a = segment * i
+            b = segment * (i + 1)
+
+            s = random.uniform(a, b)
+            (idx, p, e) = self.tree.get(s)
+            priorities.append(p)
+            states.append(e.state)
+            actions.append(e.action)
+            rewards.append(e.reward)
+            next_states.append(e.next_state)
+            dones.append(e.done)
+            idxs.append(idx)
+
+        sampling_probabilities = priorities / self.tree.total()
+        states = torch.tensor(states, device=self.device, dtype=torch.float32, requires_grad=False)
+        actions = torch.tensor(actions, device=self.device, dtype=torch.float32, requires_grad=False)
+        rewards = torch.tensor(rewards, device=self.device, dtype=torch.float32, requires_grad=False)
+        next_states = torch.tensor(next_states, device=self.device, dtype=torch.float32, requires_grad=False)
+        dones = torch.tensor(dones, device=self.device, dtype=torch.float32, requires_grad=False)
+        sampling_probabilities = torch.tensor(sampling_probabilities, device=self.device, dtype=torch.float32, requires_grad=False)
+
+        return states, actions, rewards, next_states, dones, idxs, sampling_probabilities
+
+    def update(self, idx, error):
+        self.tree.update(idx, error)
+
+    def __len__(self):
+        return self.tree.n_entries
