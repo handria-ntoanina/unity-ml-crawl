@@ -3,7 +3,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from agents_maddpg.utils import soft_update
 
 def layer_init(layer, w_scale=1.0):
     nn.init.orthogonal_(layer.weight.data)
@@ -11,24 +10,88 @@ def layer_init(layer, w_scale=1.0):
     nn.init.constant_(layer.bias.data, 0)
     return layer
 
-class ActorCritic(nn.Module):
-    def __init__(self, state_size, action_size, activation=F.relu):
+class TanhGaussianActorCritic(nn.Module):
+    def __init__(self, state_size, action_size, q_number, activation=F.relu):
         super().__init__()
+        # This need a change in I:\MyDev\Anaconda3\envs\drlnd\Lib\site-packages\torch\distributions\utils.py
+        # at the line 70, check the type using isinstance instead of __class__.__name__
         self.activation = activation
         self.state_size = state_size
         self.action_size = action_size
-        self.actor = FullyConnected([state_size, 112, 112,  action_size], activation=activation)
-        self.critic = FullyConnected([state_size + action_size, 112, 112, 1], activation=activation)
-    
+
+        self.log_alpha = torch.nn.Parameter(torch.tensor(0.0, dtype=torch.float32))
+        self.actor = TanhGaussian(state_size, action_size, activation=activation)
+        self.critics_local = [FullyConnected([state_size + action_size, 128, 128, 1], activation=activation) for i in
+                              range(q_number)]
+        for fc in self.critics_local:
+            layer_init(fc.hidden_layers[-1], 1e-3)
+        self.critics_target = [FullyConnected([state_size + action_size, 128, 128, 1], activation=activation) for i in
+                               range(q_number)]
+        for fc in self.critics_target:
+            layer_init(fc.hidden_layers[-1], 1e-3)
+
     def forward(self, state):
-        return F.tanh(self.actor(state))
-    
-    def estimate(self, state, action):
-        """
-            The expected input here is the boosted information. That are the states seen by all agents and their actions
-        """
-        concatenated = torch.cat((state, action), dim=-1)
-        return self.critic(concatenated)
+        return self.actor(state)
+
+    def get_with_probabilities(self, state):
+        return self.actor.get_with_probabilities(state)
+
+class TanhGaussianActorCriticValue(nn.Module):
+    def __init__(self, state_size, action_size, q_number, activation=F.relu):
+        super().__init__()
+        # This need a change in I:\MyDev\Anaconda3\envs\drlnd\Lib\site-packages\torch\distributions\utils.py
+        # at the line 70, check the type using isinstance instead of __class__.__name__
+        self.activation = activation
+        self.state_size = state_size
+        self.action_size = action_size
+
+        self.log_alpha = torch.nn.Parameter(torch.tensor(0.0, dtype=torch.float32))
+        self.actor = TanhGaussian(state_size, action_size, activation=activation)
+        self.value_local = FullyConnected([state_size, 128, 128, 1], activation=activation)
+        self.value_target = FullyConnected([state_size, 128, 128, 1], activation=activation)
+        self.critics_local = [FullyConnected([state_size + action_size, 128, 128, 1], activation=activation) for i in
+                              range(q_number)]
+
+    def forward(self, state):
+        return self.actor(state)
+
+    def get_with_probabilities(self, state):
+        return self.actor.get_with_probabilities(state)
+
+class TanhGaussian(nn.Module):
+    def __init__(self, state_size, action_size, activation=F.relu):
+        super().__init__()
+        # This need a change in I:\MyDev\Anaconda3\envs\drlnd\Lib\site-packages\torch\distributions\utils.py
+        # at the line 70, check the type using isinstance instead of __class__.__name__
+        self.activation = activation
+        self.fc = FullyConnected([state_size, 128, 128], activation=activation)
+        self.mean_linear = nn.Linear(128, action_size)
+        layer_init(self.mean_linear)
+        self.log_std_linear = nn.Linear(128, action_size)
+        layer_init(self.log_std_linear)
+        self.log_std_min = -20
+        self.log_std_max = 2
+        self.action_size = action_size
+
+    def forward(self, state):
+        action, _ = self.get_with_probabilities(state)
+        return action
+
+    def test(self, state):
+        x = self.activation(self.fc(state))
+        return torch.tanh(self.mean_linear(x))
+
+    def get_with_probabilities(self, state):
+        x = self.activation(self.fc(state))
+        mean = self.mean_linear(x)
+        log_std = torch.clamp(self.log_std_linear(x), self.log_std_min, self.log_std_max)
+        std = log_std.exp()
+        actions = torch.distributions.Normal(0, torch.ones(self.action_size)).sample()*std + mean
+        actions_tanh = torch.tanh(actions)
+        # This is an approximator of the log likelihood of tanh(actions)
+        log_prob = torch.distributions.Normal(mean, std).log_prob(actions) - torch.log( 1 - actions_tanh.pow(2) + 1e-6)
+        log_prob = log_prob.sum(dim=-1, keepdim=True)
+        return actions_tanh, log_prob
 
 class FullyConnected(nn.Module):
     def __init__(self, hidden_layers_size, activation=F.relu):

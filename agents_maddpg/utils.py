@@ -62,18 +62,16 @@ Experience = namedtuple("Experience", field_names=["state", "action", "reward", 
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, device, buffer_size, batch_size, seed):
+    def __init__(self, device, buffer_size, batch_size):
         """Initialize a ReplayBuffer object.
        
         Params
         ======
             buffer_size (int): maximum size of buffer
             batch_size (int): size of each training batch
-            seed (int): random seed
         """
         self.memory = deque(maxlen=buffer_size)  
         self.batch_size = batch_size
-        self.seed = random.seed(seed)
         self.device = device
         
     def add(self, state, action, reward, next_state, done):
@@ -94,11 +92,11 @@ class ReplayBuffer:
             yield self.to_tensor(temp[a:(a+1)*self.batch_size])
     
     def to_tensor(self, experiences):
-        states = torch.from_numpy(np.array([e.state for e in experiences if e is not None])).float().to(self.device).requires_grad_(False)
-        actions = torch.from_numpy(np.array([e.action for e in experiences if e is not None])).float().to(self.device).requires_grad_(False)
-        rewards = torch.from_numpy(np.array([e.reward for e in experiences if e is not None])).float().to(self.device).requires_grad_(False)
-        next_states = torch.from_numpy(np.array([e.next_state for e in experiences if e is not None])).float().to(self.device).requires_grad_(False)
-        dones = torch.from_numpy(np.array([e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(self.device).requires_grad_(False)
+        states = torch.from_numpy(np.array([e.state for e in experiences if e is not None], dtype=np.float32)).to(self.device).requires_grad_(False)
+        actions = torch.from_numpy(np.array([e.action for e in experiences if e is not None], dtype=np.float32)).to(self.device).requires_grad_(False)
+        rewards = torch.from_numpy(np.array([e.reward for e in experiences if e is not None], dtype=np.float32)).to(self.device).requires_grad_(False)
+        next_states = torch.from_numpy(np.array([e.next_state for e in experiences if e is not None], dtype=np.float32)).to(self.device).requires_grad_(False)
+        dones = torch.from_numpy(np.array([e.done for e in experiences if e is not None], dtype=np.float32)).to(self.device).requires_grad_(False)
   
         return (states, actions, rewards, next_states, dones)
 
@@ -109,10 +107,17 @@ class ReplayBuffer:
 
 class PrioritizedMemory:
     def __init__(self, device, capacity, batch_size):
-        self.tree = SumTree(capacity)
+        self.tree = None
         self.capacity = capacity
         self.batch_size = batch_size
         self.device = device
+        self.reset()
+        
+    def reset(self):
+#         if self.tree:
+#             del self.tree
+        self.tree = SumTree(self.capacity)
+        
 
 
     def add(self, error, state, action, reward, next_state, done):

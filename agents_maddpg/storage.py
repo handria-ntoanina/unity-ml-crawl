@@ -1,7 +1,8 @@
 import torch
 import torch.nn.functional as F
 from agents_maddpg.maddpg import MADDPG
-from agents_maddpg.utils import PrioritizedMemory
+from agents_maddpg.sac import SAC
+from agents_maddpg.utils import PrioritizedMemory, ReplayBuffer
 from agents_maddpg.utils import soft_update
 from shutil import copyfile
 import agents_maddpg
@@ -12,7 +13,7 @@ class Storage:
         pass
 
     @staticmethod
-    def new(network, state_size, action_size, num_agents,device, noise, seed, memory_size=int(1e5),
+    def new(network, state_size, action_size, num_agents,device, noise, memory_size=int(1e5),
             batch_size=256,
             ACTIVATION = F.relu,
             GRADIENT_CLIP = 1,

@@ -135,7 +135,7 @@ class MADDPG():
                 assert targeted_value.shape == current_value.shape, " targeted_value {} != current_value {}".format(
                     targeted_value.shape, current_value.shape)
 
-            errors = np.abs(current_value - targeted_value).data.numpy() + 0.01
+            errors = torch.abs(current_value - targeted_value).data.numpy() + 0.01
             for i in range(len(errors)):
                 self.memory.add(errors[i] ** self.MEMORY_RANDOMNESS, self.states[0][i],
                                             self.actions[0][i],
@@ -179,6 +179,7 @@ class MADDPG():
             q_next = self.network_target.estimate(next_states, next_actions).squeeze(-1)
             assert q_next.shape == dones.shape, " q_next {} != dones {}".format(q_next.shape, dones.shape)
             assert q_next.shape == rewards.shape, " q_next {} != rewards {}".format(q_next.shape, rewards.shape)
+            # TODO this might need to be detached
             targeted_value = rewards + (self.GAMMA**self.BOOTSTRAP_SIZE)*q_next*(1 - dones)
          
         current_value = self.network_local.estimate(states, actions).squeeze(-1)
