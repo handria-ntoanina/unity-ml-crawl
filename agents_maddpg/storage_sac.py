@@ -5,6 +5,7 @@ from agents_maddpg.sac_value import SAC_Value
 from agents_maddpg.utils import ReplayBuffer
 from shutil import copyfile
 import agents_maddpg
+import os.path
 
 
 class Storage:
@@ -103,20 +104,24 @@ class Storage:
     @staticmethod
     def load(filename, device, agent_class=SAC):
         checkpoint = torch.load(filename)
-        folder = '.\\' + '\\'.join(filename.split('\\')[0:-1])
-        memory = torch.load(folder + '\memory_complete.mem')
+        folder = './' + '/'.join(filename.split('/')[0:-1])
+        pathMemory = folder + '/memory_complete.mem'
+        if os.path.isfile(pathMemory):
+            memory = torch.load(pathMemory)
+        else:
+            memory = ReplayBuffer(device, int(1e5), 16)
         activation = eval(checkpoint['activation'])
         network = eval(checkpoint['network'])(checkpoint['state_size'], checkpoint['action_size'],
                                               checkpoint['q_number'], activation=activation).to(device)
         network.load_state_dict(checkpoint['network_params'])
-        if 'actor_params' in checkpoint:
-            network.actor.load_state_dict(checkpoint['actor_params'])
-        if 'critics_local_params' in checkpoint:
-            for state_dict, critic in zip(checkpoint['critics_local_params'], network.critics_local):
-                critic.load_state_dict(state_dict)
-        if 'critics_target_params' in checkpoint:
-            for state_dict, critic in zip(checkpoint['critics_target_params'], network.critics_target):
-                critic.load_state_dict(state_dict)
+        # if 'actor_params' in checkpoint:
+        network.actor.load_state_dict(checkpoint['actor_params'])
+        # if 'critics_local_params' in checkpoint:
+        for state_dict, critic in zip(checkpoint['critics_local_params'], network.critics_local):
+            critic.load_state_dict(state_dict)
+        # if 'critics_target_params' in checkpoint:
+        for state_dict, critic in zip(checkpoint['critics_target_params'], network.critics_target):
+            critic.load_state_dict(state_dict)
 
         agent = agent_class(network,memory,device, checkpoint['LR_CRITIC'],
                     checkpoint['LR_ACTOR'], checkpoint['LR_ALPHA'], checkpoint['UPDATE_EVERY'],
@@ -124,12 +129,12 @@ class Storage:
                     checkpoint['TRANSFER_EVERY'],
                     checkpoint['WEIGHT_DECAY'], checkpoint['TARGET_ENTROPY'],
                     checkpoint['GAMMA'])
-        if 'alpha_optim' in checkpoint:
-            agent.alpha_optim.load_state_dict(checkpoint['alpha_optim'])
-        if 'critic_optims' in checkpoint:
-            for state, optim in zip(checkpoint['critic_optims'], agent.critic_optims):
-                optim.load_state_dict(state)
-        if 'actor_optim' in checkpoint:
-            agent.actor_optim.load_state_dict(checkpoint['actor_optim'])
+        # if 'alpha_optim' in checkpoint:
+        agent.alpha_optim.load_state_dict(checkpoint['alpha_optim'])
+        # if 'critic_optims' in checkpoint:
+        for state, optim in zip(checkpoint['critic_optims'], agent.critic_optims):
+            optim.load_state_dict(state)
+        # if 'actor_optim' in checkpoint:
+        agent.actor_optim.load_state_dict(checkpoint['actor_optim'])
         scores = checkpoint['scores']
         return agent, scores
